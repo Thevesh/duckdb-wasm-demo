@@ -175,6 +175,15 @@ export default function DuckDBQuery() {
     }
   }, [db, query])
 
+  // Auto-resize textarea when query changes
+  useEffect(() => {
+    const textarea = document.getElementById('query') as HTMLTextAreaElement
+    if (textarea) {
+      textarea.style.height = 'auto'
+      textarea.style.height = Math.min(textarea.scrollHeight, 400) + 'px'
+    }
+  }, [query])
+
   // Sample queries
   const sampleQueries = [
     {
@@ -244,6 +253,31 @@ export default function DuckDBQuery() {
               {sample.name}
             </button>
           ))}
+          
+          <button
+            onClick={() => setQuery(`WITH station_totals AS (
+  SELECT 
+    station,
+    SUM(passengers) as total_passengers
+  FROM (
+    SELECT origin as station, passengers FROM 'https://data.kijang.net/cb39dq/duckdb_test.parquet'
+    UNION ALL
+    SELECT destination as station, passengers FROM 'https://data.kijang.net/cb39dq/duckdb_test.parquet'
+  )
+  WHERE station != 'A0: All Stations'
+  GROUP BY station
+)
+SELECT 
+  station,
+  total_passengers,
+  RANK() OVER (ORDER BY total_passengers DESC) as rank
+FROM station_totals
+ORDER BY total_passengers DESC
+LIMIT 10`)}
+            className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+          >
+            Popular Stations
+          </button>
         </div>
       </div>
 
@@ -258,9 +292,11 @@ export default function DuckDBQuery() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Enter your SQL query here..."
-          className="w-full h-32 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-none bg-white text-gray-900 relative z-10"
+          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-none bg-white text-gray-900 relative z-10"
           style={{ 
             minHeight: '128px',
+            maxHeight: '400px',
+            height: 'auto',
             backgroundColor: 'white',
             color: '#111827',
             border: '1px solid #d1d5db',
@@ -272,6 +308,12 @@ export default function DuckDBQuery() {
           aria-label="SQL Query Input"
           aria-describedby="query-help"
           tabIndex={0}
+          onInput={(e) => {
+            // Auto-expand the textarea to fit content
+            const target = e.target as HTMLTextAreaElement;
+            target.style.height = 'auto';
+            target.style.height = Math.min(target.scrollHeight, 400) + 'px';
+          }}
         />
         <div id="query-help" className="sr-only">
           Enter your SQL query to execute against the 15 million row dataset
@@ -281,7 +323,7 @@ export default function DuckDBQuery() {
         
         <div className="mt-2 flex justify-between items-center">
           <p className="text-xs text-gray-500">
-            Query the 15M row dataset directly from S3
+            Query the 14M row dataset directly from S3
           </p>
           <button
             onClick={executeQuery}
