@@ -182,6 +182,7 @@ export default function PassengerChart({ data, origin, destination, selectedTime
         }
       },
       y: {
+        beginAtZero: true, // Always start y-axis at 0 for accurate representation
         grid: {
           display: false, // Remove grid lines
           drawBorder: false
