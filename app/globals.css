@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: #ffffff;
+  font-family: var(--font-jetbrains-mono), 'JetBrains Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'liga' 1, 'kern' 1;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Ensure textarea is properly styled and accessible */
+textarea {
+  background-color: white !important;
+  color: #111827 !important; /* text-gray-900 */
+  border: 1px solid #d1d5db !important; /* border-gray-300 */
+  outline: none !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+textarea:focus {
+  border-color: #3b82f6 !important; /* border-blue-500 */
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important; /* focus ring */
+}
+
+/* Ensure no other elements are blocking the textarea */
+#query {
+  position: relative !important;
+  z-index: 1000 !important;
+  pointer-events: auto !important;
+  cursor: text !important;
+}
+
+/* Custom very light green background */
+.bg-green-25 {
+  background-color: #f0fff4;
+}
+
+.border-green-100 {
+  border-color: #c6f6d5;
+}
+
+/* Custom very subtle shadow */
+.shadow-xs {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
