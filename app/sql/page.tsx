@@ -11,7 +11,7 @@ export default function SQLPage() {
             Build Your Own Query
           </h1>
           <p className="text-xl text-gray-600 mb-2">
-            Directly query the 14 million row dataset
+            Directly query the 18 million row dataset
           </p>
           <p className="text-lg text-gray-500">
             The dataset is hosted in an S3 bucket and served via CloudFront

@@ -11,7 +11,7 @@ export default function Home() {
           The power of DuckDB-WASM
         </h1>
         <p className="text-xl text-black max-w-4xl mx-auto leading-relaxed font-light">
-          This site has zero backend. The chart below is built from a client-side DuckDB query to a Parquet file containing 14 million rows.
+          This site has zero backend. The charts below are built from a client-side DuckDB query to a Parquet file containing 18 million rows.
         </p>
       </div>
 

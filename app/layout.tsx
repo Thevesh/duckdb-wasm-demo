@@ -10,7 +10,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'The power of DuckDB-WASM',
-  description: 'This site has zero backend. Built from client-side DuckDB queries to a Parquet file containing 14 million rows.',
+  description: 'This site has zero backend. The charts are built from a client-side DuckDB query to a Parquet file containing 18 million rows.',
 }
 
 export default function RootLayout({

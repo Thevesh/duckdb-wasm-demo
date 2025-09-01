@@ -13,7 +13,7 @@ A NextJS application that demonstrates DuckDB WASM's ability to query large data
 
 ## Dataset
 
-The demo uses a 14 million row dataset hosted at:
+The demo uses a 18 million row dataset hosted at:
 `https://data.kijang.net/cb39dq/duckdb_test.parquet`
 
 ## Tech Stack
