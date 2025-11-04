@@ -1,8 +1,27 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import OriginDestinationChart from './components/OriginDestinationChart'
 
 export default function Home() {
+  const [rowCount, setRowCount] = useState<string>('millions of')
+
+  useEffect(() => {
+    fetch('http://data.kijang.net/cb39dq/static_test.json')
+      .then(res => res.json())
+      .then(data => {
+        const rows = data.n_rows
+        const formatted = typeof rows === 'number'
+          ? rows.toLocaleString()
+          : rows
+        setRowCount(formatted)
+      })
+      .catch(err => {
+        console.error('Failed to fetch metadata:', err)
+        // Keep default fallback text
+      })
+  }, [])
+
   return (
     <main className="min-h-screen">
       {/* Hero Section - Black callouts at the top */}
@@ -11,7 +30,7 @@ export default function Home() {
           The power of DuckDB-WASM
         </h1>
         <p className="text-xl text-black max-w-4xl mx-auto leading-relaxed font-light">
-          This site has zero backend. The charts below are built from a client-side DuckDB query to a Parquet file containing 18 million rows.
+          This site has zero backend. The charts below are built from a client-side DuckDB query to a Parquet file containing {rowCount} rows.
         </p>
       </div>
 

@@ -19,11 +19,28 @@ export default function DuckDBQuery() {
   const [error, setError] = useState<string | null>(null)
   const [datasetInfo, setDatasetInfo] = useState<string>('')
   const [initTime, setInitTime] = useState<number>(0)
+  const [rowCount, setRowCount] = useState<string>('millions of')
+
+  // Fetch row count from metadata
+  useEffect(() => {
+    fetch('http://data.kijang.net/cb39dq/static_test.json')
+      .then(res => res.json())
+      .then(data => {
+        const rows = data.n_rows
+        const formatted = typeof rows === 'number'
+          ? rows.toLocaleString()
+          : rows
+        setRowCount(formatted)
+      })
+      .catch(err => {
+        console.error('Failed to fetch metadata:', err)
+      })
+  }, [])
 
   // Format cell values based on column type
   const formatCellValue = (cell: any, columnName: string): string => {
     if (cell === null || cell === undefined) return 'NULL'
-    
+
     // Format date columns to yyyy-mm-dd
     if (columnName.toLowerCase().includes('date')) {
       try {
@@ -35,15 +52,15 @@ export default function DuckDBQuery() {
         // If date parsing fails, return original value
       }
     }
-    
+
     // Format passenger/numerical columns with comma separators
-    if (columnName.toLowerCase().includes('passenger') || 
-        columnName.toLowerCase().includes('total') ||
-        columnName.toLowerCase().includes('rank') ||
-        typeof cell === 'number') {
+    if (columnName.toLowerCase().includes('passenger') ||
+      columnName.toLowerCase().includes('total') ||
+      columnName.toLowerCase().includes('rank') ||
+      typeof cell === 'number') {
       return Number(cell).toLocaleString()
     }
-    
+
     // Return original value for other columns
     return String(cell)
   }
@@ -57,32 +74,32 @@ export default function DuckDBQuery() {
       try {
         setIsInitializing(true)
         setError(null)
-        
+
         // Get the JSDelivr bundles
         const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles()
-        
+
         // Select a bundle based on browser checks
         const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES)
-        
+
         // Create a worker
         const worker_url = URL.createObjectURL(
-          new Blob([`importScripts("${bundle.mainWorker}");`], {type: 'text/javascript'})
+          new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
         )
-        
+
         // Instantiate the asynchronous version of DuckDB-wasm
         const worker = new Worker(worker_url)
         const logger = new duckdb.ConsoleLogger()
         const duckdbInstance = new duckdb.AsyncDuckDB(logger, worker)
-        
+
         await duckdbInstance.instantiate(bundle.mainModule, bundle.pthreadWorker)
         URL.revokeObjectURL(worker_url)
-        
+
         // Create a connection
         const connection = await duckdbInstance.connect()
-        
+
         // Register the S3 dataset with timeout
         const s3Url = 'https://data.kijang.net/cb39dq/duckdb_test.parquet'
-        
+
         // Set a timeout for dataset info to prevent blocking
         const datasetInfoPromise = Promise.race([
           connection.query(`
@@ -91,11 +108,11 @@ export default function DuckDBQuery() {
               COUNT(DISTINCT *) as distinct_rows
             FROM '${s3Url}'
           `),
-          new Promise((_, reject) => 
+          new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Dataset info timeout')), 5000)
           )
         ])
-        
+
         try {
           const infoResult = await datasetInfoPromise as any
           if (infoResult && infoResult.numRows > 0) {
@@ -106,12 +123,12 @@ export default function DuckDBQuery() {
           console.log('Dataset info not available yet:', infoError)
           setDatasetInfo('Dataset ready - info loading in background')
         }
-        
+
         const endTime = performance.now()
         const totalInitTime = endTime - startTime
         setInitTime(totalInitTime)
         console.log(`🚀 DuckDB initialized in ${totalInitTime.toFixed(2)}ms`)
-        
+
         setDb(duckdbInstance)
         setIsInitializing(false)
       } catch (err) {
@@ -135,15 +152,15 @@ export default function DuckDBQuery() {
 
       const startTime = performance.now()
       const connection = await db.connect()
-      
+
       const queryResult = await connection.query(query.trim())
       const endTime = performance.now()
-      
+
       if (queryResult && queryResult.numRows > 0) {
         // Convert Arrow table to array for easier handling
         const rows = queryResult.toArray()
         const columns = queryResult.schema.fields.map(field => field.name)
-        
+
         setResult({
           columns,
           rows: rows.slice(0, 100).map(row => Object.values(row)), // Limit to first 100 rows for display
@@ -161,14 +178,14 @@ export default function DuckDBQuery() {
     } catch (err) {
       console.error('Query execution failed:', err)
       let errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      
+
       // Provide helpful error messages for common issues
       if (errorMessage.includes('NetworkError') || errorMessage.includes('Failed to load')) {
         errorMessage = `Network Error: The dataset URL may not be accessible due to CORS restrictions. Try the "Test CORS dataset" sample query first.`
       } else if (errorMessage.includes('parquet')) {
         errorMessage = `Parquet Error: ${errorMessage}. The file format may not be compatible.`
       }
-      
+
       setError(`Query failed: ${errorMessage}`)
     } finally {
       setIsLoading(false)
@@ -215,8 +232,8 @@ export default function DuckDBQuery() {
       <div className="text-center py-8">
         <div className="text-red-600 text-lg mb-4">❌ Initialization Failed</div>
         <p className="text-gray-600 mb-4">{error}</p>
-        <button 
-          onClick={() => window.location.reload()} 
+        <button
+          onClick={() => window.location.reload()}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
           Retry
@@ -253,7 +270,7 @@ export default function DuckDBQuery() {
               {sample.name}
             </button>
           ))}
-          
+
           <button
             onClick={() => setQuery(`WITH station_totals AS (
   SELECT 
@@ -286,14 +303,14 @@ LIMIT 10`)}
         <label htmlFor="query" className="block text-sm font-medium text-gray-700 mb-2">
           SQL Query
         </label>
-        
+
         <textarea
           id="query"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Enter your SQL query here..."
           className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-none bg-white text-gray-900 relative z-10"
-          style={{ 
+          style={{
             minHeight: '128px',
             maxHeight: '400px',
             height: 'auto',
@@ -318,12 +335,12 @@ LIMIT 10`)}
         <div id="query-help" className="sr-only">
           Enter your SQL query to execute against the 15 million row dataset
         </div>
-        
 
-        
+
+
         <div className="mt-2 flex justify-between items-center">
           <p className="text-xs text-gray-500">
-            Query the 14M row dataset directly from S3
+            Query the {rowCount} row dataset directly from S3
           </p>
           <button
             onClick={executeQuery}
@@ -342,7 +359,7 @@ LIMIT 10`)}
             <p className="text-red-800 font-medium">Error:</p>
             <p className="text-red-700">{error}</p>
           </div>
-          
+
           {/* CORS Troubleshooting */}
           {error.includes('Network Error') && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -369,7 +386,7 @@ LIMIT 10`)}
               {result.rowCount.toLocaleString()} rows • {result.executionTime.toFixed(2)}ms
             </div>
           </div>
-          
+
           {result.rows.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full border border-gray-200 rounded-lg">

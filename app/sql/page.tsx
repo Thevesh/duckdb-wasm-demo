@@ -1,8 +1,26 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import DuckDBQuery from '../components/DuckDBQuery'
 
 export default function SQLPage() {
+  const [rowCount, setRowCount] = useState<string>('millions of')
+
+  useEffect(() => {
+    fetch('http://data.kijang.net/cb39dq/static_test.json')
+      .then(res => res.json())
+      .then(data => {
+        const rows = data.n_rows
+        const formatted = typeof rows === 'number'
+          ? rows.toLocaleString()
+          : rows
+        setRowCount(formatted)
+      })
+      .catch(err => {
+        console.error('Failed to fetch metadata:', err)
+      })
+  }, [])
+
   return (
     <main className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-6xl mx-auto">
@@ -11,7 +29,7 @@ export default function SQLPage() {
             Build Your Own Query
           </h1>
           <p className="text-xl text-gray-600 mb-2">
-            Directly query the 18 million row dataset
+            Directly query the {rowCount} row dataset
           </p>
           <p className="text-lg text-gray-500">
             The dataset is hosted in an S3 bucket and served via CloudFront

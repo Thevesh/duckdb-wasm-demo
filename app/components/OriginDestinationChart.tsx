@@ -21,29 +21,75 @@ export default function OriginDestinationChart() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [initTime, setInitTime] = useState<number>(0)
-  
+
   // Station data state
   const [stationData, setStationData] = useState<StationData>({})
   const [selectedOrigin, setSelectedOrigin] = useState<string>('KJ15: KL Sentral')
   const [selectedDestination, setSelectedDestination] = useState<string>('A0: All Stations')
   const [destinations, setDestinations] = useState<string[]>([])
-  
+
   // Chart data state
   const [passengerData, setPassengerData] = useState<PassengerData[]>([])
   const [reversePassengerData, setReversePassengerData] = useState<PassengerData[]>([])
   const [querySpeed, setQuerySpeed] = useState<number>(0)
-  
+  const [hasInitialData, setHasInitialData] = useState<boolean>(false)
+  const [hasUserInteracted, setHasUserInteracted] = useState<boolean>(false)
+
   // Date range filter state
   const [selectedTimeFilter, setSelectedTimeFilter] = useState<string>('6months')
   const [filteredPassengerData, setFilteredPassengerData] = useState<PassengerData[]>([])
   const [filteredReverseData, setFilteredReverseData] = useState<PassengerData[]>([])
   const [showDestinationWarning, setShowDestinationWarning] = useState<boolean>(false)
 
+  // Load initial data from static_test.json for fast first paint
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const response = await fetch('https://data.kijang.net/cb39dq/static_test.json')
+        const data = await response.json()
+
+        if (data.initial_data) {
+          const origin = 'KJ15: KL Sentral'
+          const destination = 'A0: All Stations'
+
+          const dates = data.initial_data.dates || []
+          const forwardPassengers = data.initial_data.forward || []
+          const reversePassengers = data.initial_data.reverse || []
+
+          // Build PassengerData arrays from the optimized format
+          const forward: PassengerData[] = dates.map((date: string, index: number) => ({
+            origin,
+            destination,
+            date,
+            passengers: forwardPassengers[index] || 0
+          }))
+
+          const reverse: PassengerData[] = dates.map((date: string, index: number) => ({
+            origin: destination,
+            destination: origin,
+            date,
+            passengers: reversePassengers[index] || 0
+          }))
+
+          setPassengerData(forward)
+          setReversePassengerData(reverse)
+          setHasInitialData(true)
+          console.log('✨ Initial data loaded for fast first paint!')
+        }
+      } catch (err) {
+        console.error('Failed to load initial data:', err)
+        // Continue without initial data - will load via DuckDB
+      }
+    }
+
+    loadInitialData()
+  }, [])
+
   // Filter data based on selected time filter
   useEffect(() => {
     if (passengerData.length > 0) {
       let filteredData: PassengerData[] = []
-      
+
       switch (selectedTimeFilter) {
         case '1month':
           filteredData = passengerData.slice(-31)
@@ -58,13 +104,13 @@ export default function OriginDestinationChart() {
           filteredData = passengerData
           break
       }
-      
+
       setFilteredPassengerData(filteredData)
     }
-    
+
     if (reversePassengerData.length > 0) {
       let filteredData: PassengerData[] = []
-      
+
       switch (selectedTimeFilter) {
         case '1month':
           filteredData = reversePassengerData.slice(-31)
@@ -79,7 +125,7 @@ export default function OriginDestinationChart() {
           filteredData = reversePassengerData
           break
       }
-      
+
       setFilteredReverseData(filteredData)
     }
   }, [selectedTimeFilter, passengerData, reversePassengerData])
@@ -91,33 +137,33 @@ export default function OriginDestinationChart() {
       try {
         setIsInitializing(true)
         setError(null)
-        
+
         // Get the JSDelivr bundles
         const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles()
-        
+
         // Select a bundle based on browser checks
         const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES)
-        
+
         // Create a worker
         const worker_url = URL.createObjectURL(
-          new Blob([`importScripts("${bundle.mainWorker}");`], {type: 'text/javascript'})
+          new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
         )
-        
+
         // Instantiate the asynchronous version of DuckDB-wasm
         const worker = new Worker(worker_url)
         const logger = new duckdb.ConsoleLogger()
         const duckdbInstance = new duckdb.AsyncDuckDB(logger, worker)
-        
+
         await duckdbInstance.instantiate(bundle.mainModule, bundle.pthreadWorker)
         URL.revokeObjectURL(worker_url)
-        
+
         setDb(duckdbInstance)
-        
+
         const endTime = performance.now()
         const totalInitTime = endTime - startTime
         setInitTime(totalInitTime)
         console.log(`🚀 DuckDB initialized in ${totalInitTime.toFixed(2)}ms`)
-        
+
         setIsInitializing(false)
       } catch (err) {
         console.error('Failed to initialize DuckDB:', err)
@@ -130,13 +176,14 @@ export default function OriginDestinationChart() {
   }, [])
 
   // Load station data from the JSON endpoint
+  // Load immediately, independent of DuckDB initialization, for fast UI
   useEffect(() => {
     const loadStationData = async () => {
       try {
         const response = await fetch('https://data.kijang.net/cb39dq/duckdb_test_dropdown.json')
         const data = await response.json()
         setStationData(data)
-        
+
         // Set destinations for the default origin (KJ15: KL Sentral)
         if (data[selectedOrigin]) {
           setDestinations(data[selectedOrigin])
@@ -147,10 +194,8 @@ export default function OriginDestinationChart() {
       }
     }
 
-    if (!isInitializing) {
-      loadStationData()
-    }
-  }, [isInitializing, selectedOrigin])
+    loadStationData()
+  }, [selectedOrigin])
 
   // Load destinations when origin changes
   useEffect(() => {
@@ -171,6 +216,7 @@ export default function OriginDestinationChart() {
     setSelectedDestination('') // Reset destination when origin changes
     setDestinations(stationData[origin] || [])
     setShowDestinationWarning(true) // Show warning that destination needs to be selected
+    setHasUserInteracted(true) // Mark that user has interacted
     // Don't trigger query - wait for destination selection
   }
 
@@ -179,18 +225,18 @@ export default function OriginDestinationChart() {
     if (!db || !selectedOrigin || !selectedDestination) {
       return // Don't execute query if either is missing
     }
-    
+
     setIsLoading(true)
     setError('')
     setShowDestinationWarning(false) // Clear warning when query executes
-    
+
     try {
       const startTime = performance.now()
-      
+
       const connection = await db.connect()
-      
+
       // Execute both queries simultaneously
-      
+
       const [forwardResult, reverseResult] = await Promise.all([
         // Query 1: Origin → Destination
         connection.query(`
@@ -204,7 +250,7 @@ export default function OriginDestinationChart() {
             AND destination = '${selectedDestination}'
           ORDER BY date ASC
         `),
-        
+
         // Query 2: Destination → Origin (reverse direction)
         connection.query(`
           SELECT 
@@ -218,11 +264,11 @@ export default function OriginDestinationChart() {
           ORDER BY date ASC
         `)
       ])
-      
+
       const endTime = performance.now()
       const totalQueryTime = endTime - startTime
       setQuerySpeed(totalQueryTime)
-      
+
       // Process forward direction data
       if (forwardResult && forwardResult.numRows > 0) {
         const rows = forwardResult.toArray()
@@ -234,7 +280,7 @@ export default function OriginDestinationChart() {
         }))
         setPassengerData(data)
       }
-      
+
       // Process reverse direction data
       if (reverseResult && reverseResult.numRows > 0) {
         const rows = reverseResult.toArray()
@@ -246,15 +292,15 @@ export default function OriginDestinationChart() {
         }))
         setReversePassengerData(data)
       }
-      
+
     } catch (err) {
       console.error('Query execution failed:', err)
       let errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      
+
       if (errorMessage.includes('NetworkError') || errorMessage.includes('Failed to load')) {
         errorMessage = `Network Error: The dataset URL may not be accessible due to CORS restrictions.`
       }
-      
+
       setError(`Query failed: ${errorMessage}`)
     } finally {
       setIsLoading(false)
@@ -262,13 +308,28 @@ export default function OriginDestinationChart() {
   }, [db, selectedOrigin, selectedDestination])
 
   // Auto-execute query when component loads with default values
+  // Skip only on initial mount if we have static data and it's the default selection
+  // Once user interacts, always query DuckDB (even when returning to defaults)
   useEffect(() => {
+    const isDefaultSelection = selectedOrigin === 'KJ15: KL Sentral' && selectedDestination === 'A0: All Stations'
+
+    // Skip DuckDB query only if:
+    // 1. We have initial static data
+    // 2. It's the default selection
+    // 3. User hasn't interacted yet (first paint only)
+    if (hasInitialData && isDefaultSelection && !hasUserInteracted) {
+      return
+    }
+
+    // Otherwise, always query DuckDB when ready
     if (selectedOrigin && selectedDestination && db && !isInitializing) {
       executeQuery()
     }
-  }, [selectedOrigin, selectedDestination, db, isInitializing, executeQuery])
+  }, [selectedOrigin, selectedDestination, db, isInitializing, executeQuery, hasInitialData, hasUserInteracted])
 
-  if (isInitializing) {
+  // Only show loading spinner if we don't have initial data yet
+  // If we have initial data, render immediately and let DuckDB load silently in background
+  if (isInitializing && !hasInitialData) {
     return (
       <div className="text-center py-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -283,8 +344,8 @@ export default function OriginDestinationChart() {
       <div className="text-center py-8">
         <div className="text-red-600 text-lg mb-4">❌ Initialization Failed</div>
         <p className="text-gray-600 mb-4">{error}</p>
-        <button 
-          onClick={() => window.location.reload()} 
+        <button
+          onClick={() => window.location.reload()}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
           Retry
@@ -329,11 +390,11 @@ export default function OriginDestinationChart() {
               onChange={(e) => {
                 setSelectedDestination(e.target.value)
                 setShowDestinationWarning(false) // Clear warning when destination is selected
+                setHasUserInteracted(true) // Mark that user has interacted
               }}
               disabled={!selectedOrigin}
-              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors font-medium ${
-                showDestinationWarning && !selectedDestination ? 'border-red-500' : ''
-              }`}
+              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors font-medium ${showDestinationWarning && !selectedDestination ? 'border-red-500' : ''
+                }`}
             >
               <option value="">Select Destination Station</option>
               {destinations.map((station) => (
@@ -383,41 +444,37 @@ export default function OriginDestinationChart() {
         <div className="flex justify-center space-x-3">
           <button
             onClick={() => setSelectedTimeFilter('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selectedTimeFilter === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTimeFilter === 'all'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             All Data
           </button>
           <button
             onClick={() => setSelectedTimeFilter('1year')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selectedTimeFilter === '1year'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTimeFilter === '1year'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             1 Year
           </button>
           <button
             onClick={() => setSelectedTimeFilter('6months')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selectedTimeFilter === '6months'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTimeFilter === '6months'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             6 Months
           </button>
           <button
             onClick={() => setSelectedTimeFilter('1month')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selectedTimeFilter === '1month'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTimeFilter === '1month'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             1 Month
           </button>
@@ -434,11 +491,11 @@ export default function OriginDestinationChart() {
                 {selectedOrigin} → {selectedDestination}
               </h3>
             </div>
-            
-            <PassengerChart 
-              data={filteredPassengerData} 
-              origin={selectedOrigin} 
-              destination={selectedDestination} 
+
+            <PassengerChart
+              data={filteredPassengerData}
+              origin={selectedOrigin}
+              destination={selectedDestination}
               selectedTimeFilter={selectedTimeFilter}
             />
           </div>
@@ -450,11 +507,11 @@ export default function OriginDestinationChart() {
                 {selectedDestination} → {selectedOrigin}
               </h3>
             </div>
-            
-            <PassengerChart 
-              data={filteredReverseData} 
-              origin={selectedDestination} 
-              destination={selectedOrigin} 
+
+            <PassengerChart
+              data={filteredReverseData}
+              origin={selectedDestination}
+              destination={selectedOrigin}
               selectedTimeFilter={selectedTimeFilter}
             />
           </div>

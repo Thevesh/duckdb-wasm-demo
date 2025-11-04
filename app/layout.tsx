@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 
-const jetbrainsMono = JetBrains_Mono({ 
+const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-jetbrains-mono'
@@ -10,7 +10,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'The power of DuckDB-WASM',
-  description: 'This site has zero backend. The charts are built from a client-side DuckDB query to a Parquet file containing 18 million rows.',
+  description: 'This site has zero backend. The charts are built from a client-side DuckDB query to a Parquet file containing millions of rows of daily-frequency origin-destination data.',
 }
 
 export default function RootLayout({
