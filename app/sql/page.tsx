@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 import DuckDBQuery from '../components/DuckDBQuery'
 
 export default function SQLPage() {
-  const [rowCount, setRowCount] = useState<string>('millions of')
+  const [rowCount, setRowCount] = useState<string>('multi-million')
 
   useEffect(() => {
-    fetch('http://data.kijang.net/cb39dq/static_test.json')
+    fetch('https://data.kijang.net/cb39dq/static_test.json')
       .then(res => res.json())
       .then(data => {
         const rows = data.n_rows

@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 import OriginDestinationChart from './components/OriginDestinationChart'
 
 export default function Home() {
-  const [rowCount, setRowCount] = useState<string>('millions of')
+  const [rowCount, setRowCount] = useState<string>('multi-million')
 
   useEffect(() => {
-    fetch('http://data.kijang.net/cb39dq/static_test.json')
+    fetch('https://data.kijang.net/cb39dq/static_test.json')
       .then(res => res.json())
       .then(data => {
         const rows = data.n_rows

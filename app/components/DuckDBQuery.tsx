@@ -19,11 +19,11 @@ export default function DuckDBQuery() {
   const [error, setError] = useState<string | null>(null)
   const [datasetInfo, setDatasetInfo] = useState<string>('')
   const [initTime, setInitTime] = useState<number>(0)
-  const [rowCount, setRowCount] = useState<string>('millions of')
+  const [rowCount, setRowCount] = useState<string>('multi-million')
 
   // Fetch row count from metadata
   useEffect(() => {
-    fetch('http://data.kijang.net/cb39dq/static_test.json')
+    fetch('https://data.kijang.net/cb39dq/static_test.json')
       .then(res => res.json())
       .then(data => {
         const rows = data.n_rows
